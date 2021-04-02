@@ -33,9 +33,12 @@ Simple script to help with reverse shell stuff
 Usage: ./rceHelper.sh [options]
 
 Options:
-	pty - Spawn a pty shell
-	reverse/rev - Get a reverse shell
-	upload/up - Upload a file via HTTP
+
+pty - Spawn a pty shell
+
+reverse/rev - Get a reverse shell
+
+upload/up - Upload a file via HTTP
   
   
   
